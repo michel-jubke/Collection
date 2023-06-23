@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+
+'''
+@ author mjubke
+@ date 2023-02
+
+Command line tool to rename images in a folder with date and time using the jpeg metadata
+'''
+
+import argparse
+import os
+import exifread
+from datetime import datetime
+
+# Set up argument parser
+parser = argparse.ArgumentParser(
+    description="Command line tool to rename images using the jpeg metadata",
+    epilog="Synopsis: rename_images /path/to/folder [--manual_data date]"
+)
+parser.add_argument(
+    "folder_path",
+    help="Path to the folder containing the images",
+    type=str
+)
+parser.add_argument(
+    "--manual_date",
+    "-md",
+    help="Date of the pictures within a folder in case no exif data exists",
+    type=str
+)
+
+args = parser.parse_args()
+no_exif_counter = 1
+
+# Specify the folder containing the images
+folder_path = args.folder_path
+
+# Loop through all the files in the folder
+for filename in os.listdir(folder_path):
+    if filename.lower().endswith('.jpg') or filename.lower().endswith('.jpeg') or filename.lower().endswith('.png'):
+        file_path = os.path.join(folder_path, filename)
+        
+        # Open the image file and read the EXIF data
+        with open(file_path, 'rb') as f:
+            tags = exifread.process_file(f)
+            
+        # Extract the date and time from the EXIF data
+        date_time_str = str(tags.get('EXIF DateTimeOriginal'))
+        if date_time_str == None or date_time_str == "None": 
+            if args.manual_date == None:
+                continue
+            else:
+                new_filename = args.manual_date + "_" + str(no_exif_counter) + os.path.splitext(filename)[1]
+                no_exif_counter += 1
+        else: 
+            date_time_obj = datetime.strptime(date_time_str, '%Y:%m:%d %H:%M:%S')
+        
+            # Generate the new file name using the date and time
+            new_filename = date_time_obj.strftime('%Y-%m-%d_%H:%M:%S') + os.path.splitext(filename)[1]
+        
+            # Check if name already exists
+            has_duplicate = True
+            i = 2
+            while has_duplicate:
+                for f in os.listdir(folder_path):
+                    if f == new_filename:
+                        if i == 2:
+                            new_filename = os.path.splitext(new_filename)[0] + "_" + str(i) + os.path.splitext(new_filename)[1]
+                            i += 1
+                            break
+                        else:
+                            new_filename = os.path.splitext(new_filename)[0][:-1] + str(i) + os.path.splitext(new_filename)[1]
+                            i += 1
+                            break
+                else:       
+                    has_duplicate = False
+
+        # Generate final file name
+        new_file_path = os.path.join(folder_path, new_filename)
+
+        # Rename the file
+        os.rename(file_path, new_file_path)
+
+        # Prepare next iteration
+        has_duplicate = True
+        i = 2

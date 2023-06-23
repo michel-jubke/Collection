@@ -1,0 +1,50 @@
+#!/usr/bin/python3
+
+'''
+@ author mjubke
+@ date 2023-04
+
+Command line tool to remove duplicate images from a folder by comparing their hashes
+'''
+
+import os
+import argparse
+from PIL import Image
+import imagehash
+
+parser = argparse.ArgumentParser(
+    description="Command line tool to remove duplicate images from a folder",
+    epilog="Synopsis: remove_duplicate_images /path/to/folder"
+    )
+
+parser.add_argument(
+    "folder_path",
+    help="Folder that contains the images",
+    type=str
+)
+
+# parse arguments
+args = parser.parse_args()
+
+# path to the folder containing the images
+folder_path = args.folder_path
+
+# create an empty dictionary to store image hashes
+image_hashes = {}
+
+# loop through all the files in the folder
+for filename in os.listdir(folder_path):
+    file_path = os.path.join(folder_path, filename)
+
+    # check if the file is an image
+    if os.path.isfile(file_path) and file_path.lower().endswith((".jpg", ".jpeg", ".png", ".bmp")):
+        # open the image and compute its hash
+        with Image.open(file_path) as img:
+            hash = str(imagehash.average_hash(img))
+
+        # if the hash already exists in the dictionary, delete the file
+        if hash in image_hashes:
+            os.remove(file_path)
+        # otherwise, add the hash to the dictionary
+        else:
+            image_hashes[hash] = file_path
